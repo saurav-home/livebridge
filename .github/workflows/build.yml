@@ -27,24 +27,19 @@ jobs:
         sudo chmod +x /usr/local/bin/apktool.jar
 
     - name: Extract Project Files
-      run: |
-        # This matches the exact name of your uploaded zip file
-        unzip LiveBridge-1.2.zip -d extracted_app/
+      run: unzip LiveBridge-1.2.zip -d extracted_app/
 
     - name: Automatically Hex Edit libapp.so
       run: |
         python3 -c "
         import os
         
-        paths = [
-            'extracted_app/lib/arm64-v8a/libapp.so',
-            'extracted_app/lib/armeabi-v7a/libapp.so',
-            'extracted_app/lib/x86_64/libapp.so'
-        ]
-        
-        for file_path in paths:
-            if os.path.exists(file_path):
-                print(f'Patching {file_path}...')
+        # This will now search through every folder inside the extracted zip to find libapp.so automatically
+        for root, dirs, files in os.walk('extracted_app'):
+            if 'libapp.so' in files:
+                file_path = os.path.join(root, 'libapp.so')
+                print(f'Found and patching {file_path}...')
+                
                 with open(file_path, 'rb') as f:
                     data = f.read()
                 
@@ -57,7 +52,11 @@ jobs:
         "
 
     - name: Rebuild APK
-      run: apktool b extracted_app/ -o unsigned.apk
+      run: |
+        # This automatically finds the folder containing apktool.yml and builds it
+        TARGET_DIR=$(dirname $(find extracted_app -name "apktool.yml" -type f | head -n 1))
+        echo "Building from directory: $TARGET_DIR"
+        apktool b "$TARGET_DIR" -o unsigned.apk
 
     - name: Sign APK
       run: |
@@ -71,3 +70,5 @@ jobs:
         name: LiveBridge-Patched-APK
         path: final-debug.apk
         
+
+
